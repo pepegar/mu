@@ -37,6 +37,10 @@ object Utils extends CommonUtils {
   case class RequestCoproductReplaced[A](a: A :+: Int :+: Boolean :+: CNil)
 
   case class Response(a: String, b: Int = 123)
+  case class Foo(a: Int)
+  case class FooUpdated(a: Int, b: String)
+  case class ResponseProduct(a: String, b: Foo)
+  case class ResponseProductUpdated(a: String, b: FooUpdated)
   case class ResponseAddedBoolean(a: String, b: Int, c: Boolean)
   case class ResponseAddedOptionalBoolean(a: String, b: Int, c: Option[Boolean])
   case class ResponseReplacedType(a: String, b: Int = 123, c: Boolean)
@@ -64,6 +68,8 @@ object Utils extends CommonUtils {
   def responseCoproductNoInt[A](a: A) = ResponseCoproductNoInt(Coproduct[A :+: String :+: CNil](a))
   def responseCoproductReplaced[A](a: A) =
     ResponseCoproductReplaced(Coproduct[A :+: Int :+: Boolean :+: CNil](a))
+  val responseProduct        = ResponseProduct("foo", Foo(123))
+  val responseProductUpdated = ResponseProductUpdated("foo", FooUpdated(123, "bar"))
 
   //Original Service
 
@@ -71,8 +77,9 @@ object Utils extends CommonUtils {
     @service(AvroWithSchema)
     trait RPCService[F[_]] {
       def get(a: Request): F[Response]
-
       def getCoproduct(a: RequestCoproduct[Request]): F[ResponseCoproduct[Response]]
+      def getProduct(a: Request): F[ResponseProduct]
+      def getCoproductProduct(a: Request): F[ResponseCoproduct[ResponseProduct]]
     }
   }
 
@@ -204,6 +211,14 @@ object Utils extends CommonUtils {
     }
   }
 
+  object serviceResponseProductUpdated {
+    @service(AvroWithSchema)
+    trait RPCService[F[_]] {
+      def getProduct(a: Request): F[ResponseProductUpdated]
+      def getCoproductProduct(a: Request): F[ResponseCoproductReplaced[ResponseProductUpdated]]
+    }
+  }
+
   object handlers {
 
     class RPCServiceHandler[F[_]: Effect] extends service.RPCService[F] {
@@ -211,6 +226,9 @@ object Utils extends CommonUtils {
       def getCoproduct(a: RequestCoproduct[Request]): F[ResponseCoproduct[Response]] =
         Effect[F].delay(
           ResponseCoproduct(Coproduct[Response :+: Int :+: String :+: CNil](response)))
+      def getProduct(a: Request): F[ResponseProduct] = Effect[F].delay(responseProduct)
+      def getCoproductProduct(a: Request): F[ResponseCoproduct[ResponseProduct]] =
+        Effect[F].delay(responseCoproduct(responseProduct))
     }
 
     class RequestAddedBooleanRPCServiceHandler[F[_]: Effect]
@@ -315,6 +333,14 @@ object Utils extends CommonUtils {
         Effect[F].delay(responseCoproduct(responseDroppedField))
     }
 
+    class ResponseProductUpdatedRPCServiceHandler[F[_]: Effect]
+        extends serviceResponseProductUpdated.RPCService[F] {
+      def getProduct(a: Request): F[ResponseProductUpdated] =
+        Effect[F].delay(responseProductUpdated)
+      def getCoproductProduct(a: Request): F[ResponseCoproductReplaced[ResponseProductUpdated]] =
+        Effect[F].delay(responseCoproductReplaced(responseProductUpdated))
+    }
+
   }
 
   trait FreesRuntime {
@@ -387,6 +413,10 @@ object Utils extends CommonUtils {
     implicit val responseDroppedFieldRPCServiceHandler: serviceResponseDroppedField.RPCService[
       ConcurrentMonad] =
       new ResponseDroppedFieldRPCServiceHandler[ConcurrentMonad]
+
+    implicit val responseProductUpdatedRPCServiceHandler: serviceResponseProductUpdated.RPCService[
+      ConcurrentMonad] =
+      new ResponseProductUpdatedRPCServiceHandler[ConcurrentMonad]
 
     //////////////////////////////////
     // Client Runtime Configuration //

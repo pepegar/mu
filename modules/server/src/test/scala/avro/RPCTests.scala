@@ -218,16 +218,16 @@ class RPCTests extends RpcBaseTestSuite {
       }
     }
 
-    "drop a field, and" should {
+    "update a product inside the response, and" should {
       "be able to provide a compatible response" in {
         runSucceedAssertion(
-          serviceResponseDroppedField.RPCService.bindService[ConcurrentMonad],
-          response)(_.get(request).unsafeRunSync())
+          serviceResponseProductUpdated.RPCService.bindService[ConcurrentMonad],
+          responseProduct)(_.getProduct(request).unsafeRunSync())
       }
       "be able to provide a compatible response within a coproduct" in {
         runSucceedAssertion(
-          serviceResponseDroppedField.RPCService.bindService[ConcurrentMonad],
-          responseCoproduct(response))(_.getCoproduct(requestCoproduct(request)).unsafeRunSync())
+          serviceResponseProductUpdated.RPCService.bindService[ConcurrentMonad],
+          responseCoproduct(responseProduct))(_.getCoproductProduct(request).unsafeRunSync())
       }
     }
 
