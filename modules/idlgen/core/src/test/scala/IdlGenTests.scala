@@ -49,8 +49,8 @@ class IdlGenTests extends RpcBaseTestSuite {
     "MyGreeterService",
     Some("foo.bar"),
     Seq(
-      RpcOption("java_multiple_files" , "true"),
-      RpcOption("java_outer_classname", "\"Quickstart\"")
+      ("java_multiple_files" , "true"),
+      ("java_outer_classname", "\"Quickstart\"")
     ),
     Seq(
       RpcMessage("HelloRequest",  Seq(valDef("arg1", "String"), valDefHK("arg2", "Option", "String"), valDefHK("arg3", "List", "String"))),

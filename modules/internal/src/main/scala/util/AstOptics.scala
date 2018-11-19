@@ -168,7 +168,7 @@ trait AstOptics {
 
   val valDefTpt = Lens[ValDef, Tree](_.tpt)(t => v => ValDef(v.mods, v.name, t, v.rhs))
 
-  val firstParamForRpc: Optional[Tree, Tree] = params ^|-? headOption ^|-> valDefTpt ^|-? rpcTypeNameFromTypeConstructor
+  val firstParamType: Optional[Tree, Tree] = params ^|-? headOption ^|-> valDefTpt
 
   val annotationName: Optional[Tree, String] = ast._Select ^|-> qualifier ^<-? ast._New ^|-> newTpt ^|-? name
 

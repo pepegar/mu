@@ -55,6 +55,7 @@ object ProjectPlugin extends AutoPlugin {
         %%("fs2-core", V.fs2),
         %%("pbdirect", V.pbdirect),
         %%("avro4s", V.avro4s),
+        "io.frees" %% "skeuomorph" % "0.0.2-PATATA",
         %%("log4s", V.log4s),
         "org.scala-lang"         % "scala-compiler" % scalaVersion.value,
         %%("scalamockScalatest") % Test
@@ -145,6 +146,7 @@ object ProjectPlugin extends AutoPlugin {
     lazy val idlGenSettings: Seq[Def.Setting[_]] = Seq(
       libraryDependencies ++= Seq(
         "com.julianpeeters" %% "avrohugger-core" % V.avrohugger,
+        "io.frees" %% "skeuomorph" % "0.0.2-PATATA",
         %%("circe-generic", V.circe)
       )
     )

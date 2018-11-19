@@ -18,12 +18,15 @@ package freestyle.rpc.idlgen
 
 import java.io.File
 import java.nio.file.{Files, Paths}
-import freestyle.rpc.protocol.SerializationType
-import freestyle.rpc.internal.util._
 import scala.collection.JavaConverters._
 
+import freestyle.rpc.protocol.SerializationType
+import freestyle.rpc.internal.util._
+
+import qq.droste.Basis
+import skeuomorph.freestyle.{FreesF, Protocol, Service}
+
 trait IdlGenerator extends Generator {
-  import Model._
 
   def serializationType: SerializationType
   def outputSubdir: String
@@ -41,26 +44,16 @@ trait IdlGenerator extends Generator {
       ScalaParser.parse(
         Toolbox.parse(Files.readAllLines(Paths.get(inputFile.toURI)).asScala.mkString("\n")),
         inputName)
-    generateFrom(definitions).map(output => s"$outputSubdir/$inputName$fileExtension" -> output)
+
+    generateFrom(definitions)
+      .map(output => s"$outputSubdir/$inputName$fileExtension" -> output.split("\n").toList)
+      .headOption
   }
 
-  def generateFrom(rpc: RpcDefinitions): Option[Seq[String]] = {
-    val messages = rpc.messages
-    val services = filterServices(rpc.services)
-    if (messages.nonEmpty || services.nonEmpty)
-      Some(generateFrom(rpc.outputName, rpc.outputPackage, rpc.options, messages, services))
-    else None
-  }
+  protected def generateFrom[T](proto: Protocol[T])(implicit T: Basis[FreesF, T]): Seq[String]
 
-  protected def generateFrom(
-      outputName: String,
-      outputPackage: Option[String],
-      options: Seq[RpcOption],
-      messages: Seq[RpcMessage],
-      services: Seq[RpcService]): Seq[String]
-
-  private def filterServices(services: Seq[RpcService]): Seq[RpcService] =
+  private def filterServices[T](services: List[Service[T]]): List[Service[T]] =
     services
-      .filter(_.serializationType == serializationType)
-      .filter(_.requests.nonEmpty)
+      .filter(_.serializationType == ScalaParser.serTypeIso.get(serializationType))
+      .filter(_.operations.nonEmpty)
 }

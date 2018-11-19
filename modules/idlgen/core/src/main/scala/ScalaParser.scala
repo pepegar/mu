@@ -14,26 +14,31 @@
  * limitations under the License.
  */
 
-package freestyle.rpc
-package idlgen
+package freestyle.rpc.idlgen
 
+import java.nio.file.{Files, Paths}
+import scala.collection.JavaConverters._
+
+import freestyle.rpc.protocol.{Avro, AvroWithSchema, Protobuf, SerializationType}
 import freestyle.rpc.internal.util.StringUtil._
-import freestyle.rpc.internal.util.{AstOptics, Toolbox}
-import freestyle.rpc.protocol._
+import freestyle.rpc.internal.util._
+import skeuomorph.freestyle.{SerializationType => ST, _}
+import qq.droste._
+import monocle.Iso
 
 object ScalaParser {
 
   import Toolbox.u._
   import AstOptics._
-  import Model._
 
-  def parse(
-      input: Tree,
-      inputName: String
-  ): RpcDefinitions = {
+  val greeterService =
+    "/home/pepe/projects/frees-io/freestyle-rpc/modules/idlgen/core/src/test/resources/GreeterService.scala"
 
+  val Tree: Tree =
+    Toolbox.parse(Files.readAllLines(Paths.get(greeterService)).asScala.mkString("\n"))
+
+  def parse[T](input: Tree, inputName: String)(implicit T: Basis[FreesF, T]): Protocol[T] = {
     val definitions = input.collect { case defs: ModuleDef => defs }
-
     def annotationValue(name: String): Option[String] =
       (for {
         defn       <- definitions
@@ -43,44 +48,71 @@ object ScalaParser {
 
     val outputName    = annotationValue("outputName").getOrElse(inputName)
     val outputPackage = annotationValue("outputPackage")
-
-    val options: Seq[RpcOption] = for {
+    val options: List[(String, String)] = for {
       defn             <- definitions
       option           <- annotationsNamed("option").getAll(defn)
       Seq(name, value) <- option.withArgsNamed("name", "value")
-    } yield RpcOption(name.toString.unquoted, value.toString) // keep value quoting as-is
+    } yield (name.toString.unquoted, value.toString) // keep value quoting as-is
 
-    val messages: Seq[RpcMessage] = for {
-      defn <- input.collect {
-        case ast._CaseClassDef(mod) if hasAnnotation("message")(mod) => mod
-      }
-      params <- params.getOption(defn).toList
-    } yield RpcMessage(defn.name.toString, params)
-
-    def getRequestsFromService(defn: Tree): List[RpcRequest] = {
+    def declarations: List[T] =
       for {
-        x            <- defn.collect({ case ast._DefDef(x) if x.rhs.isEmpty => x })
-        name         <- List(x.name.toString)
-        requestType  <- firstParamForRpc.getOption(x).toList
-        responseType <- returnTypeAsString.getOption(x).toList
-        streamingType = (requestStreaming.getOption(x), responseStreaming.getOption(x)) match {
-          case (None, None)       => None
-          case (Some(_), None)    => Some(RequestStreaming)
-          case (None, Some(_))    => Some(ResponseStreaming)
-          case (Some(_), Some(_)) => Some(BidirectionalStreaming)
+        defn <- input.collect {
+          case ast._CaseClassDef(tree) if hasAnnotation("message")(tree) => tree
         }
-      } yield RpcRequest(name, requestType, responseType, streamingType)
+      } yield parseType.apply(defn)
 
-    }
+    def getRequestsFromService(defn: Tree): List[Service.Operation[T]] =
+      for {
+        x           <- defn.collect({ case ast._DefDef(x) if x.rhs.isEmpty => x })
+        name        <- List(x.name.toString)
+        requestType <- firstParamType.getOption(x).toList
+        responseType = returnType.get(x)
+      } yield Service.Operation(name, parseType.apply(requestType), parseType.apply(responseType))
 
-    val services: Seq[RpcService] =
+    def services: List[Service[T]] =
       input.collect {
         case ServiceClass(clazz, serializationType) =>
-          RpcService(serializationType, clazz.name.toString, getRequestsFromService(clazz))
+          Service(
+            clazz.name.toString,
+            serTypeIso.get(serializationType),
+            getRequestsFromService(clazz))
       }
 
-    RpcDefinitions(outputName, outputPackage, options, messages, services)
+    Protocol(outputName, outputPackage, options, declarations, services)
   }
+
+  val parseTypeAlgebra: Coalgebra[FreesF, Tree] = Coalgebra {
+    case ast._Ident(Ident(TypeName("Null")))            => FreesF.TNull()
+    case ast._Ident(Ident(TypeName("Double")))          => FreesF.TDouble()
+    case ast._Ident(Ident(TypeName("Float")))           => FreesF.TFloat()
+    case ast._Ident(Ident(TypeName("Int")))             => FreesF.TInt()
+    case ast._Ident(Ident(TypeName("Long")))            => FreesF.TLong()
+    case ast._Ident(Ident(TypeName("Boolean")))         => FreesF.TBoolean()
+    case ast._Ident(Ident(TypeName("String")))          => FreesF.TString()
+    case ast._Ident(x)                                  => FreesF.TNamedType(x.name.toString)
+    case ast._SingletonTypeTree(x)                      => FreesF.TNamedType(x.ref.toString + ".type")
+    case ast._AppliedTypeTree(AppliedTypeTree(x, tpes)) => FreesF.TGeneric(x, tpes)
+    case ast._CaseClassDef(tree) if hasAnnotation("message")(tree) =>
+      FreesF.TProduct(
+        tree.name.toString,
+        params.getOption(tree).toList.flatten.map { t =>
+          FreesF.Field(t.name.toString, t.tpt)
+        }
+      )
+  }
+
+  def parseType[T](implicit T: Embed[FreesF, T]): Tree => T = scheme.ana(parseTypeAlgebra)
+
+  def serTypeIso: Iso[SerializationType, ST] =
+    Iso[SerializationType, ST] {
+      case Protobuf       => ST.Protobuf
+      case Avro           => ST.Avro
+      case AvroWithSchema => ST.AvroWithSchema
+    } {
+      case ST.Protobuf       => Protobuf
+      case ST.Avro           => Avro
+      case ST.AvroWithSchema => AvroWithSchema
+    }
 
   object ServiceClass {
     def unapply(tree: Tree): Option[(ClassDef, SerializationType)] =

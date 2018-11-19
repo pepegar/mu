@@ -22,93 +22,93 @@ import freestyle.rpc.internal.util.{AstOptics, Toolbox}
 
 object ProtoIdlGenerator extends IdlGenerator {
 
-  import Toolbox.u._
-  import Model._
-  import AstOptics._
+  // import Toolbox.u._
+  // import Model._
+  // import AstOptics._
 
-  val idlType: String                      = IdlType
-  val serializationType: SerializationType = Protobuf
-  val outputSubdir: String                 = "proto"
-  val fileExtension: String                = ProtoExtension
+  // val idlType: String                      = IdlType
+  // val serializationType: SerializationType = Protobuf
+  // val outputSubdir: String                 = "proto"
+  // val fileExtension: String                = ProtoExtension
 
-  private val HeaderLines = Seq(
-    "// This file has been automatically generated for use by",
-    "// the idlGen plugin, from frees-rpc service definitions.",
-    "// Read more at: http://frees.io/docs/rpc",
-    "",
-    "syntax = \"proto3\";",
-    ""
-  )
+  // private val HeaderLines = Seq(
+  //   "// This file has been automatically generated for use by",
+  //   "// the idlGen plugin, from frees-rpc service definitions.",
+  //   "// Read more at: http://frees.io/docs/rpc",
+  //   "",
+  //   "syntax = \"proto3\";",
+  //   ""
+  // )
 
-  protected def generateFrom(
-      outputName: String,
-      outputPackage: Option[String],
-      options: Seq[RpcOption],
-      messages: Seq[RpcMessage],
-      services: Seq[RpcService]): Seq[String] = {
+  // protected def generateFrom(
+  //     outputName: String,
+  //     outputPackage: Option[String],
+  //     options: Seq[(String, String)],
+  //     messages: Seq[RpcMessage],
+  //     services: Seq[RpcService]): Seq[String] = {
 
-    val packageLines = outputPackage.map(pkg => Seq(s"package $pkg;", "")).getOrElse(Seq.empty)
+  //   val packageLines = outputPackage.map(pkg => Seq(s"package $pkg;", "")).getOrElse(Seq.empty)
 
-    val optionLines = options.map {
-      case RpcOption(name, value) => s"option $name = $value;"
-    } :+ ""
-    val messageLines = messages.flatMap {
-      case RpcMessage(name, params) => textBlock("message", name, messageFields(params)) :+ ""
-    }
-    val serviceLines: Seq[String] = services.flatMap {
-      case RpcService(_, name, requests) =>
-        textBlock("service", name, requestFields(requests))
-    }
-    val importLines =
-      if (serviceLines.exists(_.contains(ProtoEmpty)))
-        Seq("import \"google/protobuf/empty.proto\";", "")
-      else Seq.empty
+  //   val optionLines = options.map {
+  //     case RpcOption(name, value) => s"option $name = $value;"
+  //   } :+ ""
+  //   val messageLines = messages.flatMap {
+  //     case RpcMessage(name, params) => textBlock("message", name, messageFields(params)) :+ ""
+  //   }
+  //   val serviceLines: Seq[String] = services.flatMap {
+  //     case RpcService(_, name, requests) =>
+  //       textBlock("service", name, requestFields(requests))
+  //   }
+  //   val importLines =
+  //     if (serviceLines.exists(_.contains(ProtoEmpty)))
+  //       Seq("import \"google/protobuf/empty.proto\";", "")
+  //     else Seq.empty
 
-    HeaderLines ++ packageLines ++ importLines ++ optionLines ++ messageLines ++ serviceLines
-  }
+  //   HeaderLines ++ packageLines ++ importLines ++ optionLines ++ messageLines ++ serviceLines
+  // }
 
-  private def textBlock(blockType: String, name: String, contents: Seq[String]) =
-    s"$blockType $name {" +: contents :+ "}"
+  // private def textBlock(blockType: String, name: String, contents: Seq[String]) =
+  //   s"$blockType $name {" +: contents :+ "}"
 
-  private def messageFields(params: Seq[ValDef]): Seq[String] =
-    params
-      .map {
-        case ast._ValDef(ValDef(_, TermName(name), tpt, _)) => s"  ${mappedType(tpt)} $name"
-      }
-      .zipWithIndex
-      .map { case (field, i) => s"$field = ${i + 1};" }
+  // private def messageFields(params: Seq[ValDef]): Seq[String] =
+  //   params
+  //     .map {
+  //       case ast._ValDef(ValDef(_, TermName(name), tpt, _)) => s"  ${mappedType(tpt)} $name"
+  //     }
+  //     .zipWithIndex
+  //     .map { case (field, i) => s"$field = ${i + 1};" }
 
-  private def requestFields(requests: Seq[RpcRequest]): Seq[String] =
-    requests.map {
-      case RpcRequest(name, reqType, retType, streamingType) =>
-        s"  rpc ${name.capitalize} (${requestType(reqType, streamingType)}) returns (${responseType(retType, streamingType)});"
-    }
+  // private def requestFields(requests: Seq[RpcRequest]): Seq[String] =
+  //   requests.map {
+  //     case RpcRequest(name, reqType, retType, streamingType) =>
+  //       s"  rpc ${name.capitalize} (${requestType(reqType, streamingType)}) returns (${responseType(retType, streamingType)});"
+  //   }
 
-  private def requestType(t: Tree, streamingType: Option[StreamingType]): String =
-    paramType(t, streamingType, RequestStreaming, BidirectionalStreaming)
+  // private def requestType(t: Tree, streamingType: Option[StreamingType]): String =
+  //   paramType(t, streamingType, RequestStreaming, BidirectionalStreaming)
 
-  private def responseType(t: Tree, streamingType: Option[StreamingType]): String =
-    paramType(t, streamingType, ResponseStreaming, BidirectionalStreaming)
+  // private def responseType(t: Tree, streamingType: Option[StreamingType]): String =
+  //   paramType(t, streamingType, ResponseStreaming, BidirectionalStreaming)
 
-  private def paramType(
-      tpe: Tree,
-      streamingType: Option[StreamingType],
-      matchingStreamingTypes: StreamingType*): String = {
-    val t     = tpe.toString
-    val pType = if (t == EmptyType) ProtoEmpty else t
-    if (streamingType.exists(matchingStreamingTypes.contains)) s"stream $pType" else pType
-  }
+  // private def paramType(
+  //     tpe: Tree,
+  //     streamingType: Option[StreamingType],
+  //     matchingStreamingTypes: StreamingType*): String = {
+  //   val t     = tpe.toString
+  //   val pType = if (t == EmptyType) ProtoEmpty else t
+  //   if (streamingType.exists(matchingStreamingTypes.contains)) s"stream $pType" else pType
+  // }
 
-  private def mappedType(typeArg: Tree): String = typeArg match {
-    case BaseType("Boolean")                              => "bool"
-    case BaseType("Int")                                  => "int32"
-    case BaseType("Long")                                 => "int64"
-    case BaseType("Float")                                => "float"
-    case BaseType("Double")                               => "double"
-    case BaseType("String")                               => "string"
-    case SingleAppliedTypeTree("Array", TermName("Byte")) => "bytes"
-    case SingleAppliedTypeTree("Option", t)               => mappedType(t)
-    case SingleAppliedTypeTree("List", t)                 => s"repeated ${mappedType(t)}"
-    case _                                                => typeArg.toString
-  }
+  // private def mappedType(typeArg: Tree): String = typeArg match {
+  //   case BaseType("Boolean")                              => "bool"
+  //   case BaseType("Int")                                  => "int32"
+  //   case BaseType("Long")                                 => "int64"
+  //   case BaseType("Float")                                => "float"
+  //   case BaseType("Double")                               => "double"
+  //   case BaseType("String")                               => "string"
+  //   case SingleAppliedTypeTree("Array", TermName("Byte")) => "bytes"
+  //   case SingleAppliedTypeTree("Option", t)               => mappedType(t)
+  //   case SingleAppliedTypeTree("List", t)                 => s"repeated ${mappedType(t)}"
+  //   case _                                                => typeArg.toString
+  // }
 }
